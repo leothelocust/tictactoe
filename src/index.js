@@ -146,7 +146,7 @@ if (startGameForm) {
             game.turn = resp.turn
             game.matrix = resp.matrix
             console.debug("Game:", game)
-            input.value = "http://localhost/join/" + game.getId()
+            input.value = _getUrl() + "/join/" + game.getId()
             instructions.classList.remove("hide")
             _waiting()
             // _yourTurn()
