@@ -1,0 +1,29 @@
+[Unit]
+Description=TicTacToe API service
+ConditionPathExists=/root/go/src/tictactoe-api
+After=network.target
+ 
+[Service]
+Type=simple
+User=root
+Group=root
+LimitNOFILE=1024
+Environment="GIN_MODE=release"
+
+Restart=on-failure
+RestartSec=10
+
+WorkingDirectory=/root/go/src/tictactoe-api
+ExecStart=/bin/bash -c "/root/go/src/tictactoe-api/tictactoe-api"
+
+# make sure log directory exists and owned by syslog
+PermissionsStartOnly=true
+ExecStartPre=/bin/mkdir -p /var/log/tictactoeapi
+ExecStartPre=/bin/chown syslog:adm /var/log/tictactoeapi
+ExecStartPre=/bin/chmod 755 /var/log/tictactoeapi
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=tictactoeapi
+ 
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,78 @@
+@import url(https://fonts.googleapis.com/css?family=Lato);
+input#shareLink {
+  font-family: monospace;
+  cursor: pointer;
+  width: 400px; }
+
+span#copySuccess {
+  display: none;
+  color: green;
+  font-weight: bold; }
+
+span#copyError {
+  display: none;
+  color: red;
+  font-weight: bold; }
+
+.link {
+  color: blue; }
+
+#status {
+  font: normal normal normal 16px/20px 'Lato', sans-serif;
+  color: red; }
+
+#turn, #waiting {
+  font: normal normal normal 16px/20px 'Lato', sans-serif; }
+
+#gameTable tr td {
+  border-bottom: 1px solid #333;
+  border-right: 1px solid #333;
+  height: 160px;
+  width: 160px;
+  text-align: center; }
+  #gameTable tr td:last-child {
+    border-right: none; }
+  #gameTable tr td.dim {
+    opacity: 0.3; }
+    #gameTable tr td.dim.highlight {
+      opacity: 1; }
+  #gameTable tr td.highlight {
+    opacity: 1; }
+
+#gameTable tr:last-child td {
+  border-bottom: none; }
+
+.hide {
+  display: none; }
+
+.tooltip {
+  position: relative;
+  display: inline-block; }
+  .tooltip .tooltiptext {
+    visibility: hidden;
+    width: 140px;
+    background-color: #555;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 150%;
+    left: 50%;
+    margin-left: -75px;
+    opacity: 0;
+    transition: opacity 0.3s; }
+    .tooltip .tooltiptext::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -5px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: #555 transparent transparent transparent; }
+  .tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1; }
+

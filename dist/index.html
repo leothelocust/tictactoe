@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>TicTacToe :: {{ .title }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="/static/main.css" />
+</head>
+<body>
+    <div class=wrapper>
+        <h1>TicTacToe</h1>
+        <h2 id=player class=hide></h2>
+        <form id=startGameForm>
+            <label for=name id=nameLabel>To start a new game, enter your name:</label>
+            <input type=text name=name id=name placeholder="Enter your name/nickname" size=64>
+            <button type=submit id=start>Start a new game</button>
+        </form>
+        <div id=instructions class=hide>
+            <p>Share this link with a friend to begin:</p>
+            <div class=link>
+                <div class=tooltip>
+                    <span class=tooltiptext id=tooltip>Copy</span>
+                    <input type=text id=shareLink onclick="ui.Copy(this)" onmouseout="ui.TooltipBlur()" readonly=readonly>
+                </div>
+            </div>
+        </div>
+        <div id=status class=hide></div>
+        <div id=waiting class=hide>Waiting for opponent</div>
+        <div id=turn class=hide>Your Turn</div>
+        <div id=winner class=hide>You WIN!!!</div>
+
+    </div>
+    <div id=gameTable class=hide>
+        <table>
+            <tr>
+                <td id=pos_0 class=tile>T</td>
+                <td id=pos_1 class=tile>I</td>
+                <td id=pos_2 class=tile>C</td>
+            </tr>
+            <tr>
+                <td id=pos_3 class=tile>T</td>
+                <td id=pos_4 class=tile>A</td>
+                <td id=pos_5 class=tile>C</td>
+            </tr>
+            <tr>
+                <td id=pos_6 class=tile>T</td>
+                <td id=pos_7 class=tile>O</td>
+                <td id=pos_8 class=tile>E</td>
+            </tr>
+        </table>
+    </div>
+    
+    <script src="/static/bundle.js"></script>
+</body>
+</html>
