@@ -139,6 +139,8 @@ if (startGameForm) {
             return false
         }
         _createGame().then(resp => {
+            name.classList.add("hide")
+            nameLabel.classList.add("hide")
             startGameForm.classList.add("hide")
             console.debug("_createGame() success", resp)
             game.turn = resp.turn
@@ -163,6 +165,8 @@ if (joinGameForm) {
             return false
         }
         _addPlayer().then(resp => {
+            name.classList.add("hide")
+            nameLabel.classList.add("hide")
             joinGameForm.classList.add("hide")
             console.debug("_addPlayer() success", resp)
             conn.send(JSON.stringify({
