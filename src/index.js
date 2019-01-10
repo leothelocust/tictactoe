@@ -61,7 +61,7 @@ export function TooltipBlur () {
 
 
 if (window.WebSocket) {
-    conn = new WebSocket("ws://" + document.location.host + "/ws")
+    conn = new WebSocket("wss://" + document.location.host + "/ws")
     conn.onclose = function (evt) {
         console.debug("Websocket Closed")
     }
