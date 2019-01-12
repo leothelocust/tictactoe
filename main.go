@@ -1,17 +1,17 @@
 package main
 
 import (
+	"errors"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	Cache "tictactoe-api/cache"
 	"time"
-
-	cache "tictactoe-api/cache"
 
 	"github.com/gin-contrib/multitemplate"
 	"github.com/gin-gonic/autotls"
 	"github.com/gin-gonic/gin"
-	uuid "github.com/satori/go.uuid"
 )
 
 func setupRender() multitemplate.Renderer {
@@ -21,10 +21,20 @@ func setupRender() multitemplate.Renderer {
 	return r
 }
 
+const charBytes = "abcdefghijkmnopqrstuvwxyz023456789"
+
+func generateRandom(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = charBytes[rand.Int63()%int64(len(charBytes))]
+	}
+	return string(b)
+}
+
 func main() {
 	hub := newHub()
 	go hub.run()
-	cache := cache.NewCache(time.Minute*10, time.Minute)
+	cache := Cache.NewCache(time.Minute*10, time.Minute)
 	router := gin.Default()
 	router.HTMLRender = setupRender()
 	router.Static("/static", "dist")
@@ -44,7 +54,7 @@ func main() {
 	//
 	//
 
-	router.GET("/join/:gameUUID", func(c *gin.Context) {
+	router.GET("/join", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "join", gin.H{
 			"title": "Play Game",
 		})
@@ -57,23 +67,38 @@ func main() {
 	})
 
 	router.POST("/game", func(c *gin.Context) {
-		var game Game
+		var game Cache.Game
 		err := c.BindJSON(&game)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
+			log.Printf("Error Binding Request %s\n", err.Error())
 		}
-		game.Turn = game.Players[0].UUID
-		cache.Set(game.UUID, game, 0)
-		c.JSON(http.StatusOK, game)
+		count := 0
+	generate:
+		game.ID = generateRandom(6)
+		_, found := cache.Get(game.ID)
+		if found {
+			count = count + 1
+			log.Printf("GAME FOUND, trying again: %s\n", game.ID)
+			if count >= 3 {
+				err = errors.New("Could not generate a new game (too many games in progress)")
+			} else {
+				goto generate
+			}
+		}
+		if err != nil {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": err.Error(),
+			})
+		} else {
+			game.Turn = &game.Player1.UUID
+			cache.Set(game.ID, game, 0)
+			c.JSON(http.StatusOK, game)
+		}
 	})
 
-	router.GET("/game/:gameUUID", func(c *gin.Context) {
-		gameUUID, err := uuid.FromString(c.Params.ByName("gameUUID"))
-		if err != nil {
-			log.Printf("UUID Parse Failed: %s\n", err)
-		}
-		game, found := cache.Get(gameUUID)
+	router.GET("/game/:gameID", func(c *gin.Context) {
+		gameID := c.Params.ByName("gameID")
+		game, found := cache.Get(gameID)
 		if !found {
 			c.Status(http.StatusNotFound)
 			return
@@ -81,39 +106,46 @@ func main() {
 		c.JSON(http.StatusOK, game)
 	})
 
-	router.POST("/game/:gameUUID/player/:playerUUID", func(c *gin.Context) {
-		gameUUID, err := uuid.FromString(c.Params.ByName("gameUUID"))
-		if err != nil {
-			log.Printf("UUID Game Parse Failed: %s\n", err)
-		}
-		playerUUID, err := uuid.FromString(c.Params.ByName("playerUUID"))
-		if err != nil {
-			log.Printf("UUID Player Parse Failed: %s\n", err)
-		}
-		game, found := cache.Get(gameUUID)
+	router.POST("/game/:gameID", func(c *gin.Context) {
+		gameID := c.Params.ByName("gameID")
+		game, found := cache.Get(gameID)
 		if !found {
 			c.Status(http.StatusNotFound)
 			return
 		}
-		_game := game.(Game)
 
-		var player Player
-		err = c.BindJSON(&player)
+		var updateGame Cache.Game
+		err := c.BindJSON(&updateGame)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
 		}
 
-		if len(_game.Players) > 1 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "TicTacToe can only be played with two players."})
-			return
+		if updateGame.ID != "" {
+			game.ID = updateGame.ID
 		}
-
-		_game.Players = append(_game.Players, &Player{
-			UUID: &playerUUID,
-			Name: player.Name,
-		})
-		cache.Set(gameUUID, _game, 0)
-		c.JSON(http.StatusOK, _game)
+		if updateGame.Player1 != nil {
+			game.Player1 = updateGame.Player1
+		}
+		if updateGame.Player2 != nil {
+			game.Player2 = updateGame.Player2
+		}
+		if updateGame.Turn != nil {
+			game.Turn = updateGame.Turn
+		}
+		if (Cache.Matrix{}) != updateGame.Matrix {
+			game.Matrix = updateGame.Matrix
+		}
+		// if updateGame.Draw != nil {
+		// 	game.Draw = updateGame.Draw
+		// }
+		// if updateGame.Winner != nil {
+		// 	game.Winner = updateGame.Winner
+		// }
+		// if updateGame.Tally != nil {
+		// 	game.Tally = append(game.Tally, updateGame.Tally[0])
+		// }
+		cache.Set(gameID, game, 0)
+		c.JSON(http.StatusOK, game)
 	})
 
 	//

@@ -1,28 +1,43 @@
 @import url(https://fonts.googleapis.com/css?family=Lato);
+body {
+  font-family: 'Lato', sans-serif; }
+
+h1 {
+  font: normal normal normal 32px/40px 'Lato', sans-serif; }
+
+h2 {
+  font: normal normal normal 24px/30px 'Lato', sans-serif; }
+
+.record {
+  font: normal normal normal 16px/30px 'Lato', sans-serif; }
+  .record #log, .record #inprogress {
+    font-size: 10px; }
+
+form {
+  padding-top: 20px; }
+  form input#name {
+    font: normal normal normal 14px/30px 'Lato', sans-serif;
+    height: 30px;
+    display: block; }
+  form button#start, form button#join {
+    font: normal normal normal 14px/30px 'Lato', sans-serif;
+    margin: 20px 0;
+    height: 30px;
+    background: #4d16e4;
+    border: none;
+    border-radius: 2px;
+    color: white; }
+
 input#shareLink {
   font-family: monospace;
   cursor: pointer;
   width: 400px; }
 
-span#copySuccess {
-  display: none;
-  color: green;
-  font-weight: bold; }
-
-span#copyError {
-  display: none;
-  color: red;
-  font-weight: bold; }
-
 .link {
   color: blue; }
 
 #status {
-  font: normal normal normal 16px/20px 'Lato', sans-serif;
-  color: red; }
-
-#turn, #waiting {
-  font: normal normal normal 16px/20px 'Lato', sans-serif; }
+  font: normal normal bold 16px/20px 'Lato', sans-serif; }
 
 #gameTable tr td {
   border-bottom: 1px solid #333;
@@ -43,7 +58,7 @@ span#copyError {
   border-bottom: none; }
 
 .hide {
-  display: none; }
+  display: none !important; }
 
 .tooltip {
   position: relative;

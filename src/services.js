@@ -1,14 +1,19 @@
 'use strict'
 
 // GET HTTP call
-export function GET (theUrl, callback) {
-    var req = new XMLHttpRequest()
-    req.onreadystatechange = function () {
-        if (req.readyState == 4 && req.status == 200)
-            callback(req.responseText)
-    }
-    req.open("GET", theUrl, true)
-    req.send(null)
+export function GET (theUrl) {
+    return new Promise((resolve, reject) => {
+        var req = new XMLHttpRequest()
+        req.onreadystatechange = function () {
+            if (req.readyState == 4 && req.status == 200) {
+                resolve(_parseOrNot(req.responseText))
+            } else if (req.readyState == 4) {
+                reject({ status: req.status, message: _parseOrNot(req.responseText) })
+            }
+        }
+        req.open("GET", theUrl, true)
+        req.send(null)
+    })
 }
 
 // POST HTTP call

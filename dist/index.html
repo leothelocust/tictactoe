@@ -11,6 +11,26 @@
     <div class=wrapper>
         <h1>TicTacToe</h1>
         <h2 id=player class=hide></h2>
+        <div id=status></div>
+        <div id=gameTable class=hide>
+            <table>
+                <tr>
+                    <td id=pos_0 class=tile>T</td>
+                    <td id=pos_1 class=tile>I</td>
+                    <td id=pos_2 class=tile>C</td>
+                </tr>
+                <tr>
+                    <td id=pos_3 class=tile>T</td>
+                    <td id=pos_4 class=tile>A</td>
+                    <td id=pos_5 class=tile>C</td>
+                </tr>
+                <tr>
+                    <td id=pos_6 class=tile>T</td>
+                    <td id=pos_7 class=tile>O</td>
+                    <td id=pos_8 class=tile>E</td>
+                </tr>
+            </table>
+        </div>
         <form id=startGameForm>
             <label for=name id=nameLabel>To start a new game, enter your name:</label>
             <input type=text name=name id=name placeholder="Enter your name/nickname" size=64>
@@ -25,30 +45,7 @@
                 </div>
             </div>
         </div>
-        <div id=status class=hide></div>
-        <div id=waiting class=hide>Waiting for opponent</div>
-        <div id=turn class=hide>Your Turn</div>
-        <div id=winner class=hide>You WIN!!!</div>
 
-    </div>
-    <div id=gameTable class=hide>
-        <table>
-            <tr>
-                <td id=pos_0 class=tile>T</td>
-                <td id=pos_1 class=tile>I</td>
-                <td id=pos_2 class=tile>C</td>
-            </tr>
-            <tr>
-                <td id=pos_3 class=tile>T</td>
-                <td id=pos_4 class=tile>A</td>
-                <td id=pos_5 class=tile>C</td>
-            </tr>
-            <tr>
-                <td id=pos_6 class=tile>T</td>
-                <td id=pos_7 class=tile>O</td>
-                <td id=pos_8 class=tile>E</td>
-            </tr>
-        </table>
     </div>
     
     <script src="/static/bundle.js"></script>

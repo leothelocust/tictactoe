@@ -4,14 +4,12 @@ import * as HTTP from './services.js'
 import { timingSafeEqual } from 'crypto';
 
 class BaseUtils {
-    constructor() {
-        this.id = this.getUUID()
-    }
+    constructor() {}
     getUUID () {
         function s4 () {
             return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
         }
-        return (s4() + s4() + '-' + s4() + '-4' + s4().slice(1) + '-8' + s4().slice(1) + '-' + s4() + s4() + s4()).toUpperCase()
+        return (s4() + s4() + '-' + s4() + '-4' + s4().slice(1) + '-8' + s4().slice(1) + '-' + s4() + s4() + s4())
     }
     setId (id) {
         this.id = id
@@ -40,77 +38,77 @@ class BaseUtils {
 export class Player extends BaseUtils {
     constructor(id, name) {
         super()
-        if (id)
+        // if `id` and `name` are passed in, we don't want to set cookies
+        if (id) {
             this.id = id
-        if (name)
+        } else {
+            this.setId(id || this.getCookie("player_id") || this.getUUID())
+        }
+        if (name) {
             this.name = name
-        return this
-    }
-    setId (id) {
-        this.id = id
+        } else {
+            this.setName(name || this.getCookie("player_name"))
+        }
         return this
     }
     getId () {
-        return this.id
+        return this.id.toLowerCase()
     }
-    setName (name) {
-        this.name = name
+    setId (id) {
+        this.id = id
+        this.setCookie("player_id", id)
         return this
     }
     getName () {
         return this.name
     }
-    loadFromCookies() {
-        this.setId(this.getCookie("player_id") || this.getId())
-        this.setName(this.getCookie("player_name"))
-        return this
-    }
-    setCookies() {
-        this.setCookie("player_id", this.id)
-        this.setCookie("player_name", this.name)
+    setName (name) {
+        this.name = name
+        this.setCookie("player_name", name)
         return this
     }
 }
 export class Game extends BaseUtils {
-    constructor(player) {
+    constructor() {
         super()
-        this.setId(this.getGameIdFromUrl() || this.id)
-        this.players = [player]
-        this.turn = player.uuid
-        this.winner = undefined
-        this.draw = undefined
+        this.setId((new URLSearchParams(window.location.search)).get('id'))
+        this.player1 = undefined // person who started the game
+        this.player2 = undefined // person who joined the game
+        this.winner = undefined // player.id
+        this.draw = undefined // true/false
         this.matrix = [
-            null, null, null,
+            null, null, null, // player.id
             null, null, null,
             null, null, null
         ]
-        this.blocked = false
+        this.next_game = undefined
         return this
     }
-    getId () {
+    getId() {
         return this.id
     }
-    getGameIdFromUrl() {
-        console.debug("getGameIdFromUrl")
-        let path = document.location.pathname.split("/")
-        console.debug(path)
-        if (path && path.length > 1) {
-            let uuid = path[path.length - 1] || ""
-            console.debug(uuid)
-            let matches = uuid.match("^[0-9A-F]{8}-[0-9A-F]{4}-[4][0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$")
-            return matches && matches.length ? path[path.length - 1] : undefined
-        }
-        return undefined
-    }
-    getOpponentsName(myId) {
-        let opponent = this.players.filter(x => x.id !== myId)[0]
-        console.debug("getOpponentsName()", opponent.name)
-        return opponent.name
-    }
-    setOpponentsTurn(myId) {
-        let opponent = this.players.filter(x => x.id !== myId)[0]
-        console.debug("setOpponentsTurn()", opponent.id)
-        this.turn = opponent.id
+    setId(id) {
+        console.debug("Set Game ID", id)
+        if (id)
+            history.replaceState(null, "", "?id=" + id)
+        this.id = id
         return this
+    }
+    setTurn (player_id) {
+        console.debug("Set Game Turn", player_id)
+        this.turn = player_id
+        return this
+    }
+    getOpponent() {
+        let player_id = this.getCookie("player_id")
+        return this.player1.id == player_id ? this.player2 : this.player1
+    }
+    setOpponentsTurn() {
+        let opponent = this.getOpponent()
+        this.setTurn(opponent.id)
+        return this
+    }
+    logResult(winnersName) {
+        this.winners.push(winnersName)
     }
 }

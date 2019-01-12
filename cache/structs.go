@@ -9,8 +9,37 @@ import (
 
 // Item for caching
 type Item struct {
-	Object     interface{}
+	Game       Game
 	Expiration int64
+}
+
+// Game object for binding with JSON POST body
+type Game struct {
+	ID       string     `json:"id"`
+	Player1  *Player    `json:"player1"`
+	Player2  *Player    `json:"player2"`
+	Turn     *uuid.UUID `json:"turn,omitempty"`
+	Draw     *bool      `json:"draw,omitempty"`
+	Winner   *uuid.UUID `json:"winner,omitempty"`
+	Matrix   Matrix     `json:"matrix"`
+	Tally    []*Tally   `json:"tally,omitempty"`
+	NextGame string     `json:"next_game"`
+	PrevGame string     `json:"previous_game"`
+}
+
+// Tally is a log of games won
+type Tally struct {
+	Player Player `json:"player"`
+	Matrix Matrix `json:"matrix"`
+}
+
+// Matrix is the game board and player uuids
+type Matrix [9]*uuid.UUID
+
+// Player object for binding with JSON POST body
+type Player struct {
+	UUID uuid.UUID `json:"id"`
+	Name string    `json:"name,omitempty"`
 }
 
 // Cache is a simple in-memory cache for storing things
@@ -20,9 +49,9 @@ type Cache struct {
 
 type cache struct {
 	defaultExpiration time.Duration
-	items             map[uuid.UUID]Item
+	items             map[string]Item
 	mu                sync.RWMutex
-	onEvicted         func(uuid.UUID, interface{})
+	onEvicted         func(string, interface{})
 	janitor           *janitor
 }
 
