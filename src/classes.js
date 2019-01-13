@@ -1,19 +1,27 @@
 'use strict'
 
-import * as HTTP from './services.js'
-import { timingSafeEqual } from 'crypto';
+/**
+ * Logging
+ * Set to true to enable console.debug() messages
+ */
+const Logging = true
 
 class BaseUtils {
     constructor() {}
+    generateRandom (len) {
+        let chars = "023456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghikmnopqrstuvwxyz"
+        let randomstring = ''
+        for (var i = 0; i < len; i++) {
+            var rnum = Math.floor(Math.random() * chars.length)
+            randomstring += chars.substring(rnum, rnum + 1)
+        }
+        return randomstring
+    }
     getUUID () {
         function s4 () {
             return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
         }
         return (s4() + s4() + '-' + s4() + '-4' + s4().slice(1) + '-8' + s4().slice(1) + '-' + s4() + s4() + s4())
-    }
-    setId (id) {
-        this.id = id
-        return this
     }
     setCookie (cname, cvalue) {
         document.cookie = cname + "=" + cvalue + ";path=/"
@@ -34,81 +42,177 @@ class BaseUtils {
         }
         return ""
     }
+    log(msg) {
+        if (Logging) {
+            if (msg) {
+                console.debug("Method " + msg + "()", this)
+            } else {
+                console.debug(this)
+            }
+        }
+    }
 }
+/**
+ * Player object
+ *
+ * @export
+ * @class Player
+ * @property {string} ID - Unique player identifier
+ * @extends {BaseUtils}
+ */
 export class Player extends BaseUtils {
-    constructor(id, name) {
+    constructor() {
         super()
-        // if `id` and `name` are passed in, we don't want to set cookies
-        if (id) {
-            this.id = id
-        } else {
-            this.setId(id || this.getCookie("player_id") || this.getUUID())
-        }
-        if (name) {
-            this.name = name
-        } else {
-            this.setName(name || this.getCookie("player_name"))
-        }
+        this.setId(this.getCookie("player_id") || this.getUUID())
+        this.log()
         return this
     }
     getId () {
-        return this.id.toLowerCase()
+        return this.ID.toLowerCase()
     }
     setId (id) {
-        this.id = id
+        this.ID = id
         this.setCookie("player_id", id)
+        this.log("setId")
         return this
     }
-    getName () {
-        return this.name
+    getName() {
+        return this.getCookie("player_name")
     }
-    setName (name) {
-        this.name = name
+    setName(name) {
         this.setCookie("player_name", name)
-        return this
     }
 }
-export class Game extends BaseUtils {
+export class Series extends BaseUtils {
     constructor() {
         super()
-        this.setId((new URLSearchParams(window.location.search)).get('id'))
-        this.player1 = undefined // person who started the game
-        this.player2 = undefined // person who joined the game
-        this.winner = undefined // player.id
-        this.draw = undefined // true/false
-        this.matrix = [
-            null, null, null, // player.id
+        this.setId((new URLSearchParams(window.location.search)).get('sid') || this.generateRandom(6))
+        this.gameMatrix = [
+            null, null, null,
             null, null, null,
             null, null, null
         ]
-        this.next_game = undefined
+        this.turn = undefined
+        this.tally = []
+        this.log()
         return this
     }
-    getId() {
+    getId () {
         return this.id
     }
-    setId(id) {
-        console.debug("Set Game ID", id)
+    setId (id) {
         if (id)
-            history.replaceState(null, "", "?id=" + id)
+            history.replaceState(null, "", "?sid=" + id)
         this.id = id
+        this.log("setId")
         return this
     }
-    setTurn (player_id) {
-        console.debug("Set Game Turn", player_id)
+    getGameMatrix () {
+        return this.gameMatrix
+    }
+    setGameMatrix (matrix) {
+        this.gameMatrix = matrix
+        return this
+    }
+    emptyGameMatrix() {
+        this.gameMatrix = [
+            null, null, null,
+            null, null, null,
+            null, null, null
+        ]
+    }
+    getTurn() {
+        return this.turn
+    }
+    setTurn(player_id) {
+        console.debug("Set Player Turn", player_id)
         this.turn = player_id
+        this.log("setTurn")
         return this
     }
-    getOpponent() {
-        let player_id = this.getCookie("player_id")
-        return this.player1.id == player_id ? this.player2 : this.player1
+    logGame() {
+        this.tally.push(this.gameMatrix)
+        this.log("logGame")
     }
-    setOpponentsTurn() {
-        let opponent = this.getOpponent()
-        this.setTurn(opponent.id)
+}
+
+/**
+ * Payload for use with websocket
+ * 
+ * @export
+ * @class Payload
+ * @extends {BaseUtils}
+ * @typedef {string} PlayerID
+ * @property {string} SeriesID - Taken from the URL query param ?sid
+ * @property {PlayerID} Sender - The sender of the socket payload
+ * @property {EventEnum} Event - The payload event type
+ * @property {PlayerID[]} Matrix - An array of length 9 containing PlayerIDs or null
+ * @property {string} Message - Chat message
+ * @property {Object} Data - Any additional payload
+ */
+export class Payload extends BaseUtils {
+    constructor(series_id, player_id) {
+        super()
+        if (!series_id || !player_id) {
+            throw "SeriesID and PlayerID are required to create a new WebSocket Payload"
+        }
+        this.SeriesID = series_id
+        this.Sender = player_id
+        this.log()
         return this
     }
-    logResult(winnersName) {
-        this.winners.push(winnersName)
+    /**
+     * Set the payload event type
+     * @param {EventType} event - Event type
+     * @returns Payload object
+     */
+    setEventType(event) {
+        this.Event = event
+        this.log("setEventType")
+        return this
     }
+    /**
+     * Set the payload game matrix array
+     * @param {PlayerID[]} matrix - An array of length 9 containing PlayerIDs or null
+     * @returns Payload object
+     */
+    setMatrix(matrix) {
+        this.Matrix = matrix
+        this.log("setMatrix")
+        return this
+    }
+    /**
+     * Set the payload chat message
+     * @param {string} message - Chat Message
+     * @returns Payload object
+     */
+    setMessage(message) {
+        this.Message = message
+        this.log("setMessage")
+        return this
+    }
+
+    /**
+     * Exports the payload using JSON.stringify()
+     * @returns {string} Serialized payload object
+     */
+    serialize() {
+        return JSON.stringify({
+            SeriesID: this.SeriesID,
+            Sender: this.Sender,
+            Event: this.Event,
+            Matrix: this.Matrix,
+            Message: this.Message,
+        })
+    }
+
+}
+
+export const EventEnum = {
+    ANYBODYHOME: 1,
+    IAMHERE: 2,
+    CHAT: 3,
+    SNAP: 4,
+    MOVE: 5,
+    NEW: 6,
 }

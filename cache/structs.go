@@ -9,38 +9,21 @@ import (
 
 // Item for caching
 type Item struct {
-	Game       Game
+	Series     Series
 	Expiration int64
 }
 
-// Game object for binding with JSON POST body
-type Game struct {
+// Series object for binding with JSON POST body
+type Series struct {
 	ID       string     `json:"id"`
-	Player1  *Player    `json:"player1"`
-	Player2  *Player    `json:"player2"`
 	Turn     *uuid.UUID `json:"turn,omitempty"`
-	Draw     *bool      `json:"draw,omitempty"`
-	Winner   *uuid.UUID `json:"winner,omitempty"`
 	Matrix   Matrix     `json:"matrix"`
-	Tally    []*Tally   `json:"tally,omitempty"`
-	NextGame string     `json:"next_game"`
-	PrevGame string     `json:"previous_game"`
-}
-
-// Tally is a log of games won
-type Tally struct {
-	Player Player `json:"player"`
-	Matrix Matrix `json:"matrix"`
+	Tally    []*Matrix  `json:"tally,omitempty"`
+	LogTally *Matrix    `json:"log_match,omitempty"`
 }
 
 // Matrix is the game board and player uuids
 type Matrix [9]*uuid.UUID
-
-// Player object for binding with JSON POST body
-type Player struct {
-	UUID uuid.UUID `json:"id"`
-	Name string    `json:"name,omitempty"`
-}
 
 // Cache is a simple in-memory cache for storing things
 type Cache struct {

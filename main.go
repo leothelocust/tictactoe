@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	Cache "tictactoe-api/cache"
@@ -19,16 +18,6 @@ func setupRender() multitemplate.Renderer {
 	r.AddFromFiles("index", "dist/index.html")
 	r.AddFromFiles("join", "dist/join.html")
 	return r
-}
-
-const charBytes = "abcdefghijkmnopqrstuvwxyz023456789"
-
-func generateRandom(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = charBytes[rand.Int63()%int64(len(charBytes))]
-	}
-	return string(b)
 }
 
 func main() {
@@ -67,73 +56,54 @@ func main() {
 	})
 
 	router.POST("/game", func(c *gin.Context) {
-		var game Cache.Game
-		err := c.BindJSON(&game)
+		var series Cache.Series
+		err := c.BindJSON(&series)
 		if err != nil {
 			log.Printf("Error Binding Request %s\n", err.Error())
 		}
-		count := 0
-	generate:
-		game.ID = generateRandom(6)
-		_, found := cache.Get(game.ID)
-		if found {
-			count = count + 1
-			log.Printf("GAME FOUND, trying again: %s\n", game.ID)
-			if count >= 3 {
-				err = errors.New("Could not generate a new game (too many games in progress)")
-			} else {
-				goto generate
-			}
+		if len(series.ID) == 0 {
+			err = errors.New("id is required")
 		}
 		if err != nil {
-			c.JSON(http.StatusConflict, gin.H{
+			c.JSON(http.StatusBadRequest, gin.H{
 				"error": err.Error(),
 			})
-		} else {
-			game.Turn = &game.Player1.UUID
-			cache.Set(game.ID, game, 0)
-			c.JSON(http.StatusOK, game)
+			return
 		}
+
+		cache.Set(series.ID, series, 0)
+		c.JSON(http.StatusOK, series)
 	})
 
-	router.GET("/game/:gameID", func(c *gin.Context) {
-		gameID := c.Params.ByName("gameID")
-		game, found := cache.Get(gameID)
+	router.GET("/game/:seriesID", func(c *gin.Context) {
+		seriesID := c.Params.ByName("seriesID")
+		series, found := cache.Get(seriesID)
 		if !found {
 			c.Status(http.StatusNotFound)
 			return
 		}
-		c.JSON(http.StatusOK, game)
+		c.JSON(http.StatusOK, series)
 	})
 
-	router.POST("/game/:gameID", func(c *gin.Context) {
-		gameID := c.Params.ByName("gameID")
-		game, found := cache.Get(gameID)
+	router.POST("/game/:seriesID", func(c *gin.Context) {
+		seriesID := c.Params.ByName("seriesID")
+		series, found := cache.Get(seriesID)
 		if !found {
 			c.Status(http.StatusNotFound)
 			return
 		}
 
-		var updateGame Cache.Game
-		err := c.BindJSON(&updateGame)
+		var updateSeries Cache.Series
+		err := c.BindJSON(&updateSeries)
 		if err != nil {
 			log.Printf("Error: %s\n", err)
 		}
 
-		if updateGame.ID != "" {
-			game.ID = updateGame.ID
+		if updateSeries.Turn != nil {
+			series.Turn = updateSeries.Turn
 		}
-		if updateGame.Player1 != nil {
-			game.Player1 = updateGame.Player1
-		}
-		if updateGame.Player2 != nil {
-			game.Player2 = updateGame.Player2
-		}
-		if updateGame.Turn != nil {
-			game.Turn = updateGame.Turn
-		}
-		if (Cache.Matrix{}) != updateGame.Matrix {
-			game.Matrix = updateGame.Matrix
+		if (Cache.Matrix{}) != updateSeries.Matrix {
+			series.Matrix = updateSeries.Matrix
 		}
 		// if updateGame.Draw != nil {
 		// 	game.Draw = updateGame.Draw
@@ -141,11 +111,11 @@ func main() {
 		// if updateGame.Winner != nil {
 		// 	game.Winner = updateGame.Winner
 		// }
-		// if updateGame.Tally != nil {
-		// 	game.Tally = append(game.Tally, updateGame.Tally[0])
-		// }
-		cache.Set(gameID, game, 0)
-		c.JSON(http.StatusOK, game)
+		if updateSeries.LogTally != nil {
+			series.Tally = append(series.Tally[1:], updateSeries.LogTally)
+		}
+		cache.Set(seriesID, series, 0)
+		c.JSON(http.StatusOK, series)
 	})
 
 	//

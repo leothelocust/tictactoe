@@ -35,7 +35,7 @@ func newCache(de time.Duration, m map[string]Item) *cache {
 // Add an item to the cache, replacing any existing item. If the duration is 0
 // (DefaultExpiration), the cache's default expiration time is used. If it is -1
 // (NoExpiration), the item never expires.
-func (c *cache) Set(k string, x Game, d time.Duration) {
+func (c *cache) Set(k string, x Series, d time.Duration) {
 	// "Inlining" of set
 	var e int64
 	if d == DefaultExpiration {
@@ -46,7 +46,7 @@ func (c *cache) Set(k string, x Game, d time.Duration) {
 	}
 	c.mu.Lock()
 	c.items[k] = Item{
-		Game:       x,
+		Series:     x,
 		Expiration: e,
 	}
 	// TODO: Calls to mu.Unlock are currently not deferred because defer
@@ -54,7 +54,7 @@ func (c *cache) Set(k string, x Game, d time.Duration) {
 	c.mu.Unlock()
 }
 
-func (c *cache) set(k string, x Game, d time.Duration) {
+func (c *cache) set(k string, x Series, d time.Duration) {
 	var e int64
 	if d == DefaultExpiration {
 		d = c.defaultExpiration
@@ -63,35 +63,35 @@ func (c *cache) set(k string, x Game, d time.Duration) {
 		e = time.Now().Add(d).UnixNano()
 	}
 	c.items[k] = Item{
-		Game:       x,
+		Series:     x,
 		Expiration: e,
 	}
 }
 
 // Add an item to the cache, replacing any existing item, using the default
 // expiration.
-func (c *cache) SetDefault(k string, x Game) {
+func (c *cache) SetDefault(k string, x Series) {
 	c.Set(k, x, DefaultExpiration)
 }
 
 // Get an item from the cache. Returns the item or nil, and a bool indicating
 // whether the key was found.
-func (c *cache) Get(k string) (Game, bool) {
+func (c *cache) Get(k string) (Series, bool) {
 	c.mu.RLock()
 	// "Inlining" of get and Expired
 	item, found := c.items[k]
 	if !found {
 		c.mu.RUnlock()
-		return item.Game, false
+		return item.Series, false
 	}
 	if item.Expiration > 0 {
 		if time.Now().UnixNano() > item.Expiration {
 			c.mu.RUnlock()
-			return item.Game, false
+			return item.Series, false
 		}
 	}
 	c.mu.RUnlock()
-	return item.Game, true
+	return item.Series, true
 }
 
 type keyAndValue struct {

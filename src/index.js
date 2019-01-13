@@ -1,84 +1,37 @@
 'use strict'
 
-import {Player, Game} from "./classes.js"
-import * as HTTP from "./services.js"
+import { Player, Series, Payload, EventEnum } from "./classes.js"
+import * as lib from "./services.js"
 import style from './style.scss'
-import { join } from "path";
 
 /**
  * Initialize DOM variables
  */
-let name = document.getElementById('name')
-let nameLabel = document.getElementById('nameLabel')
-let playerH1 = document.getElementById('player')
+let opponent = document.getElementById('opponent')
+let message = document.getElementById('message')
 let status = document.getElementById('status')
+let tally = document.getElementById('tally')
 let gameTable = document.getElementById('gameTable')
+
 let instructions = document.getElementById('instructions')
 let shareLink = document.getElementById('shareLink')
 let tooltip = document.getElementById("tooltip")
-let startGameForm = document.getElementById('startGameForm')
-let joinGameForm = document.getElementById('joinGameForm')
+
 let opponentTileColor = "#992222"
 let tileColor = "#229922"
-let gameOver = false
-let firstgame = true
+
+let opponentName
 
 let conn
+let payload
 let player = new Player()
-console.debug(player)
-if (player.getName()) {
-    name.value = player.getName()
-    _hideConfig()
-    _showGreeting()
-}
+let series = new Series()
 
-let game = new Game()
-console.debug(game)
-if (game.getId()) {
-    firstgame = false
-    // we need to fetch the game data and resume the game
-    _retrieveGameFromServer().then(resp => {
-        console.debug("_retrieveGameFromServer() success", resp)
-        game.player1 = new Player(resp.player1.id, resp.player1.name)
-        game.turn = resp.turn
-        game.matrix = resp.matrix
-        if (!resp.player2 || typeof resp.player2 === "undefined") {
-            _updateGameOnServer({
-                player2: player
-            }).then(resp => {
-                console.debug("_updateGame() success", resp)
-                console.debug(game)
-            }).catch(err => {
-                console.debug("_updateGame() err", err)
-            })
-        } else {
-            game.player2 = new Player(resp.player2.id, resp.player2.name)
-        }
-        if (document.location.pathname != "/join") {
-            _renderGame()
-            _showGame()
-        }
-        console.debug(game)
-    }).catch(err => {
-        console.debug("_retrieveGameFromServer() error", err)
-    })
-}
-
-
-export function Copy (context) {
-    console.debug(context.innerText)
-    context.select()
-    document.execCommand("Copy")
-    tooltip.innerHTML = "Copied!"
-}
-export function TooltipBlur () {
-    tooltip.innerHTML = "Copy"
-}
-
+shareLink.value = _getURL() + "/game?sid=" + series.getId()
 
 if (window.WebSocket) {
-    conn = new WebSocket("wss://" + document.location.host + "/ws")
-    conn.onclose = function (evt) {
+    conn = new WebSocket("ws://" + document.location.host + "/ws")
+    conn.onclose = function () {
         console.debug("Websocket Closed")
     }
     conn.onmessage = function (evt) {
@@ -88,213 +41,216 @@ if (window.WebSocket) {
             try {
                 data = JSON.parse(data)
             } catch (e) {
-                console.error("Error parsing", data)
+                console.debug("WebSocket Payload Parse Error", data)
             }
-            console.debug("Message", data)
-            if (data.sender.toUpperCase() === player.getId().toUpperCase()) {
-                // console.debug("My own message received and ignored")
+            if (data.Sender === player.getId() && data.SeriesID === series.getId()) {
+                console.debug("WebSocket Payload Ignored", data)
                 return
+            } else if (data.SeriesID === series.getId()) {
+                console.debug("WebSocket Payload Received", Object.keys(EventEnum).find(k => EventEnum[k] === data.Event), data)
+                switch (data.Event) {
+                    case EventEnum.ANYBODYHOME:
+                        _showGame()
+                        opponentName = data.Message
+                        opponent.innerText = "Your opponent is: " + opponentName
+                        series.setTurn(null)
+                        status.innerText = _possessivizer(opponentName) + " Turn"
+                        if (player.getName()) {
+                            payload = new Payload(series.getId(), player.getId())
+                                .setEventType(EventEnum.IAMHERE)
+                                .setMessage(player.getName())
+                                .setMatrix(series.getGameMatrix())
+                                .serialize()
+                            conn.send(payload)
+                        } else {
+                            let nick = prompt("Nickname?", "")
+                            player.setName(nick)
+                            payload = new Payload(series.getId(), player.getId())
+                                .setEventType(EventEnum.IAMHERE)
+                                .setMessage(player.getName())
+                                .setMatrix(series.getGameMatrix())
+                                .serialize()
+                            conn.send(payload)
+                        }
+                        break;
+                    case EventEnum.IAMHERE:
+                        _showGame()
+                        opponentName = data.Message
+                        opponent.innerText = "Your opponent is: " + opponentName
+                        series.setTurn(player.getId())
+                        status.innerText = "Your Turn"
+                        series.setGameMatrix(data.Matrix)
+                        _renderGame()
+                        break;
+                    case EventEnum.CHAT:
+                        message.innerText = "Your opponent says: " + data.Message
+                        break;
+                    case EventEnum.MOVE:
+                        series.setGameMatrix(data.Matrix)
+                        series.setTurn(player.getId())
+                        status.innerText = "Your Turn"
+                        _renderGame()
+                        break;
+                    case EventEnum.NEW:
+                        series.logGame()
+                        series.emptyGameMatrix()
+                        series.setTurn(player.getId())
+                        status.innerText = "Your Turn"
+                        _renderGame()
+                        break;
+                }
             }
-            if (data.game_id.toUpperCase() !== game.getId().toUpperCase()) {
-                // console.debug("Not my game")
-                return
-            }
-            switch(data.event) {
-                case "joining":
-                    console.debug("Event: joining")
-                    instructions.classList.add("hide")
-                    _safeRetrieve()
-                    _showGame()
-                    break
-                case "new":
-                    console.debug("Event: new")
-                    let newGame = confirm("Would you like to play again?")
-                    if (newGame) {
-                        history.replaceState(null, "", "?id=" + data.new_game_id)
-                        game.setId(data.new_game_id)
-                        _retrieveGameFromServer().then(resp => {
-                            console.debug("_retrieveGameFromServer() success", resp)
-                            game.player1 = new Player(resp.player1.id, resp.player1.name)
-                            game.player2 = new Player(resp.player2.id, resp.player2.name)
-                            game.matrix = resp.matrix
-                            game.turn = resp.turn
-                            console.debug(game)
-                            gameOver = false
-                            _renderGame()
-                        }).catch(err => {
-                            console.debug("_retrieveGameFromServer() error", err)
-                        })
-                    }
-                    break
-                case "move":
-                    console.debug("Event: move")
-                    _safeRetrieve()
-                    break
-                case "winner":
-                    console.debug("Event: winner")
-                    game.winner = data.sender
-                    _safeRetrieve()
-                    break
-            }
+        }
+    }
+    conn.onopen = function (evt) {
+        if (player.getName()) {
+            payload = new Payload(series.getId(), player.getId())
+                .setEventType(EventEnum.ANYBODYHOME)
+                .setMessage(player.getName())
+                .serialize()
+            conn.send(payload)
+        } else {
+            let nick = prompt("Nickname?", "")
+            player.setName(nick)
+            payload = new Payload(series.getId(), player.getId())
+                .setEventType(EventEnum.ANYBODYHOME)
+                .setMessage(player.getName())
+                .serialize()
+            conn.send(payload)
         }
     }
 } else {
     console.error("TicTacToe can only be played in a browser that supports a WebSocket connection.")
 }
 
+
 /**
  * BEGIN Document Listeners
  */
-if (startGameForm) {
-    startGameForm.addEventListener('submit', event => {
-        event.preventDefault()
-        if (!_validateForm()) {
-            return false
-        }
-        if (firstgame) {
-            _safeCreate()
-            firstgame = false
-        } else {
-            _createGame().then(resp => {
-                console.debug("_createGame() success", resp)
-                history.replaceState(null, "", "?id=" + resp.id)
-                let old_game_id = game.getId()
-                game.setId(resp.id)
-                _updateGameOnServer({
-                    player2: game.player2,
-                    turn: game.player1.id == game.winner ? game.player2.id : game.player1.id,
-                    previous_game: old_game_id
-                }).then(resp => {
-                    console.debug("_updateGameOnServer() success", resp)
-                    gameOver = false
-                    game.turn = resp.turn
-                    game.matrix = resp.matrix
-                    conn.send(JSON.stringify({
-                        sender: player.getId(),
-                        game_id: old_game_id,
-                        event: "new",
-                        new_game_id: resp.id
-                    }))
-                    _renderGame()
-                }).catch(err => {
-                    console.debug("_updateGameOnServer() err", err)
-                })
-            }).catch(err => {
-                console.debug("_createGame() err", err)
-            })
-        }
-    })
-}
-if (joinGameForm) {
-    joinGameForm.addEventListener('submit', event => {
-        event.preventDefault()
-        if (!_validateForm()) {
-            return false
-        }
-        conn.send(JSON.stringify({
-            sender: player.getId(),
-            game_id: game.getId(),
-            event: "joining"
-        }))
-        joinGameForm.classList.add("hide")
-        _theirTurn()
-        _showGame()
-    })
-}
+
 function tileListener (event) {
-    if (gameOver) {
-        event.preventDefault()
-        return false
-    }
     let pos = event.target.id.split('_')[1]
     // validate its my turn
-    if (game.turn !== player.getId()) {
+    if (series.getTurn() !== player.getId()) {
         console.debug("Not my turn")
         event.preventDefault()
         return
     }
     // validate position available
-    if (game.matrix[pos]) {
+    if (series.getGameMatrix()[pos]) {
         console.debug("Tile not free")
         event.preventDefault()
         return
     }
     // set move
-    game.matrix[pos] = player.getId()
+    let matrix = series.getGameMatrix()
+    matrix[pos] = player.getId()
+    series.setGameMatrix(matrix)
+    series.setTurn(null)
+    status.innerText = _possessivizer(opponentName) + " Turn"
 
-    // calculate if 3 tiles in a row
-    let [done, winner, positions] = _threeInARow()
+    _renderGame()
 
-    _updateGameOnServer({
-        id: game.getId(),
-        player1: game.player1,
-        player2: game.player2,
-        turn: game.player1.id == game.turn ? game.player2.id : game.player1.id,
-        winner: winner,
-        matrix: game.matrix
-    }).then(resp => {
-        console.debug("_updateGameOnServer() success", resp)
-        conn.send(JSON.stringify({
-            sender: player.getId(),
-            game_id: game.getId(),
-            event: done ? "winner" : "move"
-        }))
-        game.turn = resp.turn
-        _renderGame()
-    }).catch(err => {
-        console.debug("_updateGameOnServer() error", err)
-    })
+    payload = new Payload(series.getId(), player.getId())
+        .setEventType(EventEnum.MOVE)
+        .setMatrix(series.getGameMatrix())
+        .serialize()
+    conn.send(payload)
 }
 if (gameTable) {
     document.querySelectorAll('.tile').forEach(element => {
         element.addEventListener('click', tileListener)
     })
 }
-/**
- * END Document Listeners
- */
-function _validateForm() {
-    if (!name.value) {
-        status.innerText = "Name is required."
-        status.style.color = "#FF0000"
-        return false
-    }
-    status.style.color = "#000000"
-    player.setName(name.value)
-    _hideConfig()
-    _showGreeting()
-    return true
-}
 
-function _showInstructions() {
-    shareLink.value = _getUrl() + "/join?id=" + game.getId()
-    instructions.classList.remove("hide")
+function _getURL () {
+    return document.location.protocol + '//' + document.location.host
 }
-function _hideInstructions () {
+function _showGame() {
+    gameTable.classList.remove("hide")
     instructions.classList.add("hide")
 }
-function _showGreeting() {
-    if (player.getName()) {
-        playerH1.innerText = "Hi " + player.getName()
-        playerH1.classList.remove("hide")
+function _renderGame () {
+    document.querySelectorAll('#gameTable td').forEach(el => el.classList.remove("dim"))
+    document.querySelectorAll('#gameTable td').forEach(el => el.classList.remove("highlight"))
+    let matrix = series.getGameMatrix()
+    for (let i = 0; i < matrix.length; i++) {
+        let playerAt = matrix
+        if (playerAt[i] === player.getId()) {
+            document.getElementById('pos_' + i).style.backgroundColor = tileColor
+        } else if (playerAt[i]) {
+            document.getElementById('pos_' + i).style.backgroundColor = opponentTileColor
+        } else {
+            document.getElementById('pos_' + i).style.backgroundColor = "unset"
+        }
+    }
+    let [me, positions] = _analyzeBoard()
+    if (positions)
+        _highlightBoard(positions)
+    if (me) {
+        setTimeout(() => {
+            let playagain = confirm("Play another round?")
+            if (playagain) {
+                series.logGame()
+                series.emptyGameMatrix()
+                _renderGame()
+                payload = new Payload(series.getId(), player.getId())
+                    .setEventType(EventEnum.NEW)
+                    .serialize()
+                conn.send(payload)
+            }
+        }, 1000)
     }
 }
-function _showGame () {
-    gameTable.classList.remove("hide")
+function _analyzeBoard() {
+    let matrix = series.getGameMatrix()
+    for (let i = 0; i <= 8; i) {
+        if (matrix[i] && (matrix[i] === matrix[i + 1] && matrix[i] === matrix[i + 2])) {
+            return [matrix[i] == player.getId(), [i, i + 1, i + 2]]
+        }
+        i = i + 3
+    }
+    for (let i = 0; i <= 2; i++) {
+        if (matrix[i] && (matrix[i] === matrix[i + 3] && matrix[i] === matrix[i + 6])) {
+            return [matrix[i] == player.getId(), [i, i + 3, i + 6]]
+        }
+    }
+    if (matrix[0] && (matrix[0] === matrix[4] && matrix[0] === matrix[8])) {
+        return [matrix[0] == player.getId(), [0, 4, 8]]
+    }
+    if (matrix[2] && (matrix[2] === matrix[4] && matrix[2] === matrix[6])) {
+        return [matrix[2] == player.getId(), [2, 4, 6]]
+    }
+    return [false, null]
 }
-function _resumeGame () {
-    startGameForm.classList.add("hide")
-    _showGame()
+function _highlightBoard(positions) {
+    document.querySelectorAll('#gameTable td').forEach(el => el.classList.add("dim"))
+    for (let pos of positions) {
+        document.querySelector('#gameTable #pos_' + pos).classList.add("highlight")
+    }
 }
-function _hideConfig () {
-    name.classList.add("hide")
-    nameLabel.classList.add("hide")
+function _possessivizer (name) {
+    if (name.charAt(name.length - 1) === "s") {
+        return name + "'"
+    } else {
+        return name + "'s"
+    }
 }
+
+export function Copy (context) {
+    context.select()
+    document.execCommand("Copy")
+    tooltip.innerHTML = "Copied!"
+}
+export function TooltipBlur () {
+    tooltip.innerHTML = "Copy"
+}
+/*
 
 function _renderGame() {
     console.debug("Render Game Board")
     _dimBoard(true)
-    for (let i = 0; i < game.matrix.length; i++) {
+    for (let i = 0; i < matrix.length; i++) {
         let playerAt = game.matrix
         if (playerAt[i] === player.getId()) {
             document.getElementById('pos_' + i).style.backgroundColor = tileColor
@@ -328,9 +284,6 @@ function _renderGame() {
     }
 }
 
-function _getUrl () {
-    return document.location.protocol + '//' + document.location.host
-}
 function _safeCreate() {
     _createGame().then(resp => {
         console.debug("_createGame() success", resp)
@@ -374,13 +327,6 @@ function _yourTurn () {
 function _theirTurn () {
     status.innerText = _possessivizer(game.getOpponent().getName()) + " Turn"
 }
-function _possessivizer(name) {
-    if (name.charAt(name.length - 1) === "s") {
-        return name + "'"
-    } else {
-        return name + "'s"
-    }
-}
 function _threeInARow() {
     for (let i = 0; i <= 8; i) {
         if (game.matrix[i] && (game.matrix[i] === game.matrix[i + 1] && game.matrix[i] === game.matrix[i + 2]) ) {
@@ -417,8 +363,4 @@ function _dimBoard(reverse) {
         document.querySelectorAll('td').forEach(el => el.classList.add("dim"))
     }
 }
-function _highlightBoard (positions) {
-    for (let pos of positions) {
-        document.querySelector('#pos_' + pos).classList.add("highlight")
-    }
-}
+*/

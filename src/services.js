@@ -1,6 +1,5 @@
 'use strict'
 
-// GET HTTP call
 export function GET (theUrl) {
     return new Promise((resolve, reject) => {
         var req = new XMLHttpRequest()
@@ -15,8 +14,6 @@ export function GET (theUrl) {
         req.send(null)
     })
 }
-
-// POST HTTP call
 export function POST (theUrl, data) {
     return new Promise((resolve, reject) => {
         let req = new XMLHttpRequest()
@@ -34,13 +31,12 @@ export function POST (theUrl, data) {
         req.send(data)
     })
 }
-
-function _parseOrNot(str) {
+export function _parseOrNot(str) {
     let data = str
     try {
         data = JSON.parse(str)
     } catch (e) {
-        console.debug("Error Parsing Response JSON:", str)
+        console.debug("Error Parsing JSON:", str)
     }
     return data
 }

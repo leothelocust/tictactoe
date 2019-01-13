@@ -10,8 +10,10 @@
 <body>
     <div class=wrapper>
         <h1>TicTacToe</h1>
-        <h2 id=player class=hide></h2>
+        <div id=opponent></div>
+        <div id="message"></div>
         <div id=status></div>
+        <div id="tally"></div>
         <div id=gameTable class=hide>
             <table>
                 <tr>
@@ -31,12 +33,7 @@
                 </tr>
             </table>
         </div>
-        <form id=startGameForm>
-            <label for=name id=nameLabel>To start a new game, enter your name:</label>
-            <input type=text name=name id=name placeholder="Enter your name/nickname" size=64>
-            <button type=submit id=start>Start a new game</button>
-        </form>
-        <div id=instructions class=hide>
+        <div id=instructions>
             <p>Share this link with a friend to begin:</p>
             <div class=link>
                 <div class=tooltip>
