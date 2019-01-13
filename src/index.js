@@ -30,7 +30,7 @@ let series = new Series()
 shareLink.value = _getURL() + "/game?sid=" + series.getId()
 
 if (window.WebSocket) {
-    conn = new WebSocket("ws://" + document.location.host + "/ws")
+    conn = new WebSocket("wss://" + document.location.host + "/ws")
     conn.onclose = function () {
         console.debug("Websocket Closed")
     }
