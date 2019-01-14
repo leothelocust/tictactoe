@@ -130,7 +130,7 @@ export class Series extends BaseUtils {
         return this
     }
     logGame() {
-        this.tally.push(this.gameMatrix)
+        this.gameMatrixHistory.push(this.gameMatrix)
         this.log("logGame")
     }
 }
