@@ -81,7 +81,9 @@ if (window.WebSocket) {
                         series.setTurn(player.getId())
                         status.innerText = "Your Turn"
                         series.setGameMatrix(data.Matrix)
-                        series.setGameMatrixHistory(data.MatrixHistory)
+                        if (data.MatrixHistory) {
+                            series.setGameMatrixHistory(data.MatrixHistory)
+                        }
                         _renderGame()
                         break;
                     case EventEnum.CHAT:
