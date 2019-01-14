@@ -1,5 +1,7 @@
 'use strict'
 
+import * as lib from "./services"
+
 /**
  * Logging
  * Set to true to enable console.debug() messages
@@ -8,15 +10,6 @@ const Logging = true
 
 class BaseUtils {
     constructor() {}
-    generateRandom (len) {
-        let chars = "023456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghikmnopqrstuvwxyz"
-        let randomstring = ''
-        for (var i = 0; i < len; i++) {
-            var rnum = Math.floor(Math.random() * chars.length)
-            randomstring += chars.substring(rnum, rnum + 1)
-        }
-        return randomstring
-    }
     getUUID () {
         function s4 () {
             return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
@@ -86,14 +79,14 @@ export class Player extends BaseUtils {
 export class Series extends BaseUtils {
     constructor() {
         super()
-        this.setId((new URLSearchParams(window.location.search)).get('sid') || this.generateRandom(6))
+        this.setId((new URLSearchParams(window.location.search)).get('sid') || lib.generateRandom(6))
         this.gameMatrix = [
             null, null, null,
             null, null, null,
             null, null, null
         ]
         this.turn = undefined
-        this.tally = []
+        this.gameMatrixHistory = []
         this.log()
         return this
     }
@@ -113,6 +106,12 @@ export class Series extends BaseUtils {
     setGameMatrix (matrix) {
         this.gameMatrix = matrix
         return this
+    }
+    getGameMatrixHistory() {
+        return this.gameMatrixHistory
+    }
+    setGameMatrixHistory(history) {
+        this.gameMatrixHistory = history
     }
     emptyGameMatrix() {
         this.gameMatrix = [
@@ -179,6 +178,16 @@ export class Payload extends BaseUtils {
     setMatrix(matrix) {
         this.Matrix = matrix
         this.log("setMatrix")
+        return this
+    }
+    /**
+     * Set the payload game matrix history array
+     * @param {PlayerID[]} history - An array of arrays containing the Game Matrix
+     * @returns Payload object
+     */
+    setMatrixHistory (history) {
+        this.MatrixHistory = history
+        this.log("setMatrixHistory")
         return this
     }
     /**

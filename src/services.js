@@ -1,5 +1,7 @@
 'use strict'
 
+const _chars = "023456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghikmnopqrstuvwxyz"
+
 export function GET (theUrl) {
     return new Promise((resolve, reject) => {
         var req = new XMLHttpRequest()
@@ -31,7 +33,7 @@ export function POST (theUrl, data) {
         req.send(data)
     })
 }
-export function _parseOrNot(str) {
+export function parseOrNot(str) {
     let data = str
     try {
         data = JSON.parse(str)
@@ -39,4 +41,12 @@ export function _parseOrNot(str) {
         console.debug("Error Parsing JSON:", str)
     }
     return data
+}
+export function generateRandom(len) {
+    let randomstring = ''
+    for (var i = 0; i < len; i++) {
+        var rnum = Math.floor(Math.random() * _chars.length)
+        randomstring += _chars.substring(rnum, rnum + 1)
+    }
+    return randomstring
 }

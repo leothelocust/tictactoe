@@ -60,6 +60,7 @@ if (window.WebSocket) {
                                 .setEventType(EventEnum.IAMHERE)
                                 .setMessage(player.getName())
                                 .setMatrix(series.getGameMatrix())
+                                .setMatrixHistory(series.getGameMatrixHistory())
                                 .serialize()
                             conn.send(payload)
                         } else {
@@ -80,6 +81,7 @@ if (window.WebSocket) {
                         series.setTurn(player.getId())
                         status.innerText = "Your Turn"
                         series.setGameMatrix(data.Matrix)
+                        series.setGameMatrixHistory(data.MatrixHistory)
                         _renderGame()
                         break;
                     case EventEnum.CHAT:
@@ -93,6 +95,7 @@ if (window.WebSocket) {
                         break;
                     case EventEnum.NEW:
                         series.logGame()
+                        _appendGameHistory()
                         series.emptyGameMatrix()
                         series.setTurn(player.getId())
                         status.innerText = "Your Turn"
@@ -185,13 +188,16 @@ function _renderGame () {
         }
     }
     let [me, positions] = _analyzeBoard()
-    if (positions)
+    if (positions) {
         _highlightBoard(positions)
+    }
     if (me) {
+        status.innerText = "YOU WIN!!!"
         setTimeout(() => {
             let playagain = confirm("Play another round?")
             if (playagain) {
                 series.logGame()
+                _appendGameHistory()
                 series.emptyGameMatrix()
                 _renderGame()
                 payload = new Payload(series.getId(), player.getId())
@@ -200,7 +206,39 @@ function _renderGame () {
                 conn.send(payload)
             }
         }, 1000)
+    } else if (positions) {
+        status.innerText = "LOSER"
     }
+    if (_draw()) {
+        if (series.getTurn() == player.getId()) {
+            setTimeout(() => {
+                let playagain = confirm("Play another round?")
+                if (playagain) {
+                    series.logGame()
+                    _appendGameHistory()
+                    series.emptyGameMatrix()
+                    _renderGame()
+                    payload = new Payload(series.getId(), player.getId())
+                        .setEventType(EventEnum.NEW)
+                        .serialize()
+                    conn.send(payload)
+                }
+            }, 1000)
+        }
+        document.querySelectorAll('#gameTable td').forEach(el => el.classList.add("dim"))
+        status.innerText = "Its a draw!"
+    }
+}
+function _appendGameHistory() {
+    let gameTableClone = gameTable.cloneNode(true)
+    gameTableClone.id = lib.generateRandom(6)
+    gameTableClone.querySelectorAll("td").forEach(el => {
+        el.id = ""
+    })
+    // if (tally.childNodes.length >= 7) {
+    //     tally.firstChild.remove()
+    // }
+    tally.appendChild(gameTableClone)
 }
 function _analyzeBoard() {
     let matrix = series.getGameMatrix()
@@ -222,6 +260,15 @@ function _analyzeBoard() {
         return [matrix[2] == player.getId(), [2, 4, 6]]
     }
     return [false, null]
+}
+function _draw() {
+    let matrix = series.getGameMatrix()
+    for (let i = 0; i < matrix.length; i++) {
+        if (!matrix[i]) {
+            return false
+        }
+    }
+    return true
 }
 function _highlightBoard(positions) {
     document.querySelectorAll('#gameTable td').forEach(el => el.classList.add("dim"))
@@ -346,14 +393,6 @@ function _threeInARow() {
         return [true, game.matrix[2], [2, 4, 6]]
     }
     return [false, null, null]
-}
-function _draw() {
-    for (let i = 0; i < game.matrix.length; i++) {
-        if (!game.matrix[i]) {
-            return false
-        }
-    }
-    return true
 }
 function _dimBoard(reverse) {
     if (reverse) {
